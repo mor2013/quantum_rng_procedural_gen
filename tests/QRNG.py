@@ -2,6 +2,7 @@ from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, transpile
 from qiskit_aer import Aer
 from math import log2, ceil, sqrt
 from random import randint
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 
 
 class Random:
@@ -10,8 +11,9 @@ class Random:
         self.b_maxrange = bin(maxrange)[2:];
         nb = len(self.b_maxrange);
         self.len = nb;
-        self.cachesize = 512;
+        self.cachesize = 1024;
         self.cache = [];
+        self.real_hardware=real_hardware;
 
         qreg = QuantumRegister(nb+2, 'q');  # two more qbits for flag control
         creg = ClassicalRegister(nb, 'c');  
@@ -47,9 +49,15 @@ class Random:
 
     
         self.circ.measure(qreg[:nb], creg);
-        print(self.circ);
-        self.sim = Aer.get_backend("qasm_simulator");
-        self._runcirc = transpile(self.circ, self.sim);
+        #print(self.circ);
+        if real_hardware:
+            service = QiskitRuntimeService();
+            self.sim = service.least_busy(operational=True, simulator=False, min_num_qubits=nb+2);
+            self._runcirc = transpile(self.circ, self.sim, optimization_level=2);
+            self.sampler = SamplerV2(mode=self.sim);
+        else:
+            self.sim = Aer.get_backend("qasm_simulator");
+            self._runcirc = transpile(self.circ, self.sim);
 
 
         
@@ -63,19 +71,27 @@ class Random:
         return int(test[:self.len][::-1], 2);
 
     def _refill(self):
-        job = self.sim.run(self._runcirc, shots=self.cachesize, memory=True)
-        self.cache = job.result().get_memory();
+        if self.real_hardware:
+            job = self.sampler.run([self._runcirc], shots=self.cachesize).result();
+            print(job);
+            self.cache = job[0].data.c.get_bitstrings();
+        else:
+            job = self.sim.run(self._runcirc, shots=self.cachesize, memory=True);
+            self.cache = job.result().get_memory();
+
+        
 
 
 
 if __name__ == '__main__':
-    test = Random(104);
+    """test = Random(13, True);
 
-    q_rand = [];
-    c_rand = [];
-    for i in range(20):
-        q_rand += [test.randint(3)];
-        c_rand += [randint(0, 15)];
+    rt = [test.randint() for i in range(500)];
 
-    print(c_rand);
-    print(q_rand);
+    with open('IBMres.txt', 'w') as f:
+        for n in rt:
+            f.write(f'{n}\n');
+
+    """
+    test = Random(2, True);
+print(test.randint());
