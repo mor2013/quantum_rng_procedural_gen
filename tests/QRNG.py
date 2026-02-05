@@ -15,41 +15,19 @@ class Random:
         self.cache = [];
         self.real_hardware=real_hardware;
 
-        qreg = QuantumRegister(nb+2, 'q');  # two more qbits for flag control
+        qreg = QuantumRegister(nb, 'q'); 
         creg = ClassicalRegister(nb, 'c');  
         self.circ = QuantumCircuit(qreg, creg);
 
-        # flip cib to |1>
-        self.circ.x(qreg[nb+1]);
+        if real_hardware and nb > 5: # choose what algorithm based on the maxrange
+            self.circ.h(qreg);
+        else:
+            prob = sqrt(1/(maxrange+1));
+            probs = [prob for i in range(0, maxrange+1)] + [0]*(2**nb-maxrange-1);
+
+            self.circ.initialize(probs);
         
-        # count probability for the first bit to be 1
-        prob = (maxrange & ((1 << (nb-1))-1))+1;
-        prob = prob/(prob+2**(nb-1));
-        state = [sqrt(1-prob), sqrt(prob)];
-
-        self.circ.initialize(state, 0);
-
-        self.circ.x(qreg[0]);
-        self.circ.ccx(qreg[0], qreg[nb+1], qreg[nb]);
-        self.circ.cx(qreg[nb], qreg[nb+1]);
-        self.circ.x(qreg[0]);
-
-        for i in range(1, nb):
-            if self.b_maxrange[i] == '1':
-                self.circ.h(qreg[i]);
-
-                self.circ.x(qreg[i]);
-                self.circ.ccx(qreg[i], qreg[nb+1], qreg[nb]);
-                self.circ.cx(qreg[nb], qreg[nb+1]);
-                self.circ.x(qreg[i]);
-        
-            else:
-                self.circ.ch(qreg[nb], qreg[i]);
-
-
-    
-        self.circ.measure(qreg[:nb], creg);
-        #print(self.circ);
+        self.circ.measure(qreg, creg);
         if real_hardware:
             service = QiskitRuntimeService();
             self.sim = service.least_busy(operational=True, simulator=False, min_num_qubits=nb+2);
@@ -59,7 +37,6 @@ class Random:
             self.sim = Aer.get_backend("qasm_simulator");
             self._runcirc = transpile(self.circ, self.sim);
 
-
         
     def randint(self):
 
@@ -68,7 +45,15 @@ class Random:
         
         test=self.cache.pop();
         #print(test);
-        return int(test[:self.len][::-1], 2);
+        return int(test[:self.len], 2);
+
+    def get_counts(self, amt=1024):
+        if self.real_hardware:
+            job = self.sampler.run([self._runcirc], shots=amt).result();
+            return job[0].data.c.get_counts();
+        else:
+            job = self.sim.run(self._runcirc, shots=amt, memory=True);
+            return job.result().get_counts();
 
     def _refill(self):
         if self.real_hardware:
@@ -84,14 +69,18 @@ class Random:
 
 
 if __name__ == '__main__':
-    """test = Random(13, True);
+    flag = True;
+    number = 10;
+    amt = 50000;
 
-    rt = [test.randint() for i in range(500)];
-
-    with open('IBMres.txt', 'w') as f:
-        for n in rt:
-            f.write(f'{n}\n');
-
-    """
-    test = Random(2, True);
-print(test.randint());
+    if flag:  # real hardware implementation
+        test = Random(number, flag);
+    
+        rt = test.get_counts(amt);
+        with open('IBMres.txt', 'w') as f:
+            for k in rt.keys():
+                f.write(f'{k} {rt[k]}\n');        
+    else:
+        test = Random(number, flag);
+        rt = [test.randint() for i in range(amt)];
+        print(rt);
