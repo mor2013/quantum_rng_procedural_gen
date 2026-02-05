@@ -78,7 +78,7 @@ class Random:
 if __name__ == '__main__':
     flag = True;
     number = 10;
-    amt = 50000;
+    amt = 100000;
 
     if flag:  # real hardware implementation
         test = Random(number, flag);
