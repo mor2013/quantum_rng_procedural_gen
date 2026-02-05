@@ -7,7 +7,7 @@ import requests
 import json
 
 
-MAX_INT=15;
+MAX_INT=10;
 AMT=50000;
 
 # Prepare
@@ -21,8 +21,6 @@ data_random = [randint(0, MAX_INT) for i in range(AMT)];                        
 data_nmp = nmp_rdm.integers(low=0, high=MAX_INT+1, size=AMT).tolist();              data_nmp.sort();
 data_secrets = [sec.randbelow(MAX_INT+1) for i in range(AMT)];                      data_secrets.sort();
 data_qrng = [qrng_rdm.randint() for i in range(AMT)];                               data_qrng.sort();
-data_real_qrng = [];
-data_outshift_qrng = [];
 
 dict_real_qrng = {};
 
@@ -32,9 +30,7 @@ with open('IBMres.txt', 'r') as f:
     line = line.split("\n");
     for lin in line:
         lin = lin.split(" ");
-        dict_real_qrng[lin[0]] = int(lin[1]);
-
-data_real_qrng.sort();
+        dict_real_qrng[int(lin[0],2)] = int(lin[1]);
 
 # request data from outshift API endpoint
 
@@ -91,17 +87,6 @@ for n in data_secrets:
 dict_qrng = {};
 for n in data_qrng:
     dict_qrng[n] = dict_qrng.get(n, 0) + 1;
-for n in data_qrng:
-    dict_real_qrng[n] = dict_real_qrng.get(n, 0) + 1;
-dict_outshift_qrng = {};
-for n in data_outshift_qrng:
-    dict_outshift_qrng[n] = dict_outshift_qrng.get(n, 0) + 1;
-
-"""print(f'RANDOM={dict_random}');
-print(f'NUMPY={dict_nmp}');
-print(f'SECRETS={dict_secrets}');
-print(f'QRNG={dict_qrng}');
-"""
 
 # Visualising the data
 plt.style.use('_mpl-gallery');
@@ -112,7 +97,7 @@ y_nmp = [dict_nmp.get(i, 0) for i in range(MAX_INT+1)];
 y_secrets = [dict_secrets.get(i, 0) for i in range(MAX_INT+1)];
 y_qrng = [dict_qrng.get(i, 0) for i in range(MAX_INT+1)];
 y_real_qrng = [dict_real_qrng.get(i, 0) for i in range(MAX_INT+1)];
-y_outshift_qrng = [dict_outshift_qrng.get(i, 0) for i in range(MAX_INT+1)];
+print(y_real_qrng);
 
 # plot
 fig, axs = plt.subplots();
@@ -129,5 +114,6 @@ axs.stem([n+0.3 for n in x], y_real_qrng, linefmt='red', markerfmt='D');
 axs.set(xlim=(0, 8), xticks=np.arange(-1, MAX_INT+2),
     ylim=(0, 8), yticks=np.arange(0, 3400))
 
+axs.tick_params(axis='y', which='both', left=False, labelleft=False);
 plt.tight_layout();
 plt.show()
