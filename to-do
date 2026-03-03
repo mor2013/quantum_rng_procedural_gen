@@ -1,2 +1,5 @@
 1) apply SABRE optimization to the circuit (will there be a difference considering the amount of CNOT's and whatsoever?)
 2) calculate the maximum amt of qbits usable for the 1st algorithm
+
+
+-) optimize counting since u lwk sort it...
